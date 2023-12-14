@@ -1,7 +1,9 @@
 import * as fs from 'fs';
 import express from 'express';
-import petsData from '../pets.json' assert {type: 'json'};
+// import petsData from '../pets.json' assert {type: 'json'};
 // import { exit } from 'process';
+// import petshop database from petshop.sql
+import petshop from petshop.sql;
 
  const app = express();
 
