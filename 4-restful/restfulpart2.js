@@ -1,91 +1,90 @@
-import * as fs from 'fs';
 import express from 'express';
-// import petsData from '../pets.json' assert {type: 'json'};
-// import { exit } from 'process';
-// import petshop database from petshop.sql
-import petshop from petshop.sql;
+import pg from "pg";
 
- const app = express();
+const { Pool } = pg;
 
- app.use(express.json()); // used to populate the request body otherwise it's undefined
+const app = express();
+const expressPort = 5000;
 
- app.use(logger);
-
- app.get('/pets/', (req, res) => {
-    fs.readFile('../pets.json', 'utf8', (error, data) => {
-        if(error) {
-            console.error(error);
-            res.status(500).send('There was an error, good luck.');
-        }
-        else {
-            console.log(data);
-            res.send(data);
-        }
-    })
-    // const { index } = req.params;
-    // console.log('index', index);
-    // if(Number.isInteger(Number(index)) && index < petsData.length && index >= 0) {
-    //     res.status(200).send(petsData[index]);
-    // }
-    // next();
-    // this was part of me and Morgan's, working, above is Kevin's 
+const pool = new Pool({
+  user: "matthewslonoff",
+  password: 'slonoff4',
+  host: "localhost",
+  database: "petshop",
+  port: 5432,
 });
 
-app.post('/pets', (req, res) => {
-    let newPet = req.body;
-    let {age, kind, name} = newPet;
-    console.log(newPet);
-    if(name === undefined || typeof age !== 'number' || age === undefined || kind === undefined) {
-        res.status(400).send('That is not a valid pet, did not work');
-    }
-    else {
-    let newFileData = JSON.stringify([...petsData, newPet]); 
-    fs.writeFile('../pets.json', newFileData, (error, data) => {
-        if(error) {
-            console.error(error);
-            res.status(500).send('Try again later');
+app.use(express.json());
+
+app.get("/pets", (req, res) => { // get is good to go
+  //query the database for city data
+  pool
+    .query("SELECT * FROM pets")
+    .then((result) => res.send(result.rows))
+    .catch((error) => {
+      console.error(error);
+      res.status(500).send("Sorry your pet not found");
+    });
+});
+
+app.post("/pets", (req, res) => { // post is good to go
+  let { age, kind, name } = req.body;
+   let queryParams = [age, kind, name];
+    pool.query('INSERT INTO pets (age, kind, name) VALUES($1, $2, $3)', queryParams)
+    .then((result) => res.send("New Pet Added~!"))
+    .catch((error) => {
+      console.error(error);
+      res.status(500).send("Sorry, can't add a new pet now.");
+    });
+});
+
+app.get("/pets:index", (req, res) => { // working on this now
+  const { index } = req.params;
+  // if index is a number, index is less than length of data, and greater than 0
+    pool
+      .query("SELECT * FROM pets WHERE id = $1", [index])
+      .then((result) => {
+      if (result.rows.length > 0) {
+        res.status(200).send(result.rows)
+        } else {
+        res.status(404).send('Pet not found');
         }
-        else {
-            petsData.push(req.newPet);
-            res.status(201).send(JSON.stringify(newPet))
-        }
-    })
-}
+      })
+      .catch((error) => {
+        console.error(error);
+        res.status(500).send("Sorry your pet not found");
+    });
 })
-// below worked for me and Morgan, above is Kevin's 
-// app.post('/pets', (req, res) => {
-//     // req.body should be the new movie to create in JSON
-//     const newPet = req.body;
-//     console.log(newPet); // make sure you're getting what you expect
-//     petsData.push(newPet);
-//     // res.status(201).send(`Movie added ${newMovie}`)
-//     fs.writeFile('../pets.json', JSON.stringify(petsData), (err) => {
-//         if(err) {
-//             console.error(err);
-//             exit(1);
-//         } else {
-//             res.status(200).setHeader('Content-Type', 'application/json').send(petsData);
-//         }
-//     });
-// });
-
-
-
+//below patch probably doesn't work yet
 app.patch('/pets/:index', (req, res) => {
-    const { index } = req.params;
-    const update = req.body;
-    Object.assign(petsData[index], update);
-    fs.writeFile('../pets.json', JSON.stringify(petsData), () => {
-        res.status(200).send(petsData[index]);
+    let index = req.params.index;
+    let { age, kind, name } = req.body;
+    let queryParams = [age, kind, name, index];
+    db.query('UPDATE pets SET name=$1 WHERE id = $2:', [name, index])
+    .then((result) => res.status(200).send('pet name updated'))
+    .catch((error) => {
+        console.error(error)
+        res.status(500).send('Error - failed to update pet')
     })
 })
 
-app.listen(5000, () => {
-    console.log("App listening at 8000");
- });
-
- function logger(req, res, next) {
-    console.log('Request Method: ', req.method);
-    console.log('Request Path: ', req.url);
-    next();
- }
+app.listen(expressPort, () => console.log("Listening at port ", expressPort));
+// Morgan's:
+// app.get("/pets/:index", (req, res) => {
+//     console.log("req params", req.params);
+//     const { index } = req.params;
+//     console.log("id", index);
+//     pool
+//       .query("SELECT * FROM pets WHERE id = $1", [index])
+//       .then((result) => {
+//         if (result.rows.length > 0) {
+//           res.status(200).send(result.rows);
+//         } else {
+//           res.status(404).send("Pet not found");
+//         }
+//       })
+//       .catch((error) => {
+//         console.error(error);
+//         res.status(500).send("Internal Server Error");
+//       });
+//   });
